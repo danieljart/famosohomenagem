@@ -17,7 +17,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Row = { id: string; criador: string; arroba: string; famoso: string; data: string | null; created_at: string };
-type NewRow = Omit<Row, "id">;
+type NewRow = Omit<Row, "id" | "created_at">;
 
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
