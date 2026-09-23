@@ -16,8 +16,8 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type Row = { id: string; criador: string; arroba: string; famoso: string; data: string | null };
-type NewRow = Omit<Row, "id">;
+type Row = { id: string; criador: string; arroba: string; famoso: string; data: string | null; created_at: string };
+type NewRow = Omit<Row, "id" | "created_at">;
 
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -80,7 +80,7 @@ function Index() {
   const [q, setQ] = useState("");
 
   const load = async () => {
-    const { data } = await supabase.from("homenagens").select("id,criador,arroba,famoso,data").order("data", { ascending: false, nullsFirst: false });
+    const { data } = await supabase.from("homenagens").select("id,criador,arroba,famoso,data,created_at").order("created_at", { ascending: false });
     setAll((data as Row[]) ?? []);
     setLoading(false);
   };
@@ -118,13 +118,12 @@ function Index() {
               className="w-full rounded-lg border border-input bg-background px-4 py-3 text-base outline-none focus:ring-2 focus:ring-ring" />
             <div className="mt-4 space-y-2">
               {loading ? <p className="text-sm text-muted-foreground">Carregando…</p>
-                : !q.trim() ? <p className="text-sm text-muted-foreground">Comece a digitar para buscar.</p>
-                : results.length === 0 ? (
+                : results.length === 0 && q.trim() ? (
                   <div className="rounded-lg border border-border bg-card p-4 text-center">
                     <p className="text-lg font-semibold text-primary">Ainda não foi feito ✅</p>
                     <p className="text-sm text-muted-foreground">"{q}" está livre.</p>
                   </div>
-                ) : results.map((r) => (
+                ) : (results.length ? results : all).map((r) => (
                   <div key={r.id} className="rounded-lg border border-border bg-card p-3">
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-semibold">{r.famoso}</p>
