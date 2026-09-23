@@ -26,11 +26,12 @@ function parseDate(s: string): string | null {
   const t = s.trim();
   if (!t) return null;
   let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  if (m) return `${m[1]}-${(m[2] ?? "").padStart(2, "0")}-${(m[3] ?? "").padStart(2, "0")}`;
   m = t.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/);
   if (m) {
-    const y = m[3].length === 2 ? "20" + m[3] : m[3];
-    return `${y}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+    const y3 = m[3] ?? "";
+    const y = y3.length === 2 ? "20" + y3 : y3;
+    return `${y}-${(m[2] ?? "").padStart(2, "0")}-${(m[1] ?? "").padStart(2, "0")}`;
   }
   return null;
 }
@@ -54,16 +55,17 @@ function parseBulk(text: string): { rows: NewRow[]; bad: string[] } {
     const line = raw.trim();
     if (!line) continue;
     const sep = line.includes("\t") ? "\t" : line.includes(";") ? ";" : line.includes("|") ? "|" : ",";
-    const p = line.split(sep).map((x) => x.trim());
+    const p: string[] = line.split(sep).map((x) => x.trim());
+    const g = (i: number) => p[i] ?? "";
     if (p.length < 3) { bad.push(line); continue; }
     let criador = "", arroba = "", famoso = "", data: string | null = null;
     if (p.length >= 4) {
-      [criador, arroba, famoso] = p;
-      data = parseDate(p[3]);
+      criador = g(0); arroba = g(1); famoso = g(2);
+      data = parseDate(g(3));
     } else {
       // 3 colunas: criador, @, famoso  OU  criador, famoso, data
-      if (parseDate(p[2])) { criador = p[0]; famoso = p[1]; data = parseDate(p[2]); }
-      else { [criador, arroba, famoso] = p; }
+      if (parseDate(g(2))) { criador = g(0); famoso = g(1); data = parseDate(g(2)); }
+      else { criador = g(0); arroba = g(1); famoso = g(2); }
     }
     if (!criador || !famoso) { bad.push(line); continue; }
     rows.push({ criador, arroba: cleanAt(arroba), famoso, data });
