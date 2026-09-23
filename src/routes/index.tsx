@@ -80,7 +80,7 @@ function Index() {
   const [q, setQ] = useState("");
 
   const load = async () => {
-    const { data } = await supabase.from("homenagens").select("id,criador,arroba,famoso,data").order("data", { ascending: false, nullsFirst: false });
+    const { data } = await supabase.from("homenagens").select("id,criador,arroba,famoso,data,created_at").order("created_at", { ascending: false });
     setAll((data as Row[]) ?? []);
     setLoading(false);
   };
