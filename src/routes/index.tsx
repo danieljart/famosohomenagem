@@ -16,7 +16,7 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type Row = { id: string; criador: string; arroba: string; famoso: string; data: string | null };
+type Row = { id: string; criador: string; arroba: string; famoso: string; data: string | null; created_at: string };
 type NewRow = Omit<Row, "id">;
 
 const norm = (s: string) =>
