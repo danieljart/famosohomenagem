@@ -14,7 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      homenagens: {
+        Row: {
+          arroba: string
+          created_at: string
+          criador: string
+          data: string | null
+          famoso: string
+          id: string
+        }
+        Insert: {
+          arroba?: string
+          created_at?: string
+          criador: string
+          data?: string | null
+          famoso: string
+          id?: string
+        }
+        Update: {
+          arroba?: string
+          created_at?: string
+          criador?: string
+          data?: string | null
+          famoso?: string
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
