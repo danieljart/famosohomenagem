@@ -5,9 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Famosos Homenageados — Consulta rápida" },
+      { title: "Famosos homenageados pela Ruptura Global" },
       { name: "description", content: "Veja se um famoso já foi homenageado por algum criador e cadastre novos registros." },
-      { property: "og:title", content: "Famosos Homenageados" },
+      { property: "og:title", content: "Famosos homenageados pela Ruptura Global" },
       { property: "og:description", content: "Busca rápida de famosos já homenageados por criadores de conteúdo." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
