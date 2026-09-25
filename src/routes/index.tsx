@@ -48,30 +48,6 @@ function cleanAt(s: string) {
   return t.startsWith("@") ? t : "@" + t;
 }
 
-function parseBulk(text: string): { rows: NewRow[]; bad: string[] } {
-  const rows: NewRow[] = [];
-  const bad: string[] = [];
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line) continue;
-    const sep = line.includes("\t") ? "\t" : line.includes(";") ? ";" : line.includes("|") ? "|" : ",";
-    const p: string[] = line.split(sep).map((x) => x.trim());
-    const g = (i: number) => p[i] ?? "";
-    if (p.length < 3) { bad.push(line); continue; }
-    let criador = "", arroba = "", famoso = "", data: string | null = null;
-    if (p.length >= 4) {
-      criador = g(0); arroba = g(1); famoso = g(2);
-      data = parseDate(g(3));
-    } else {
-      // 3 colunas: criador, @, famoso  OU  criador, famoso, data
-      if (parseDate(g(2))) { criador = g(0); famoso = g(1); data = parseDate(g(2)); }
-      else { criador = g(0); arroba = g(1); famoso = g(2); }
-    }
-    if (!criador || !famoso) { bad.push(line); continue; }
-    rows.push({ criador, arroba: cleanAt(arroba), famoso, data });
-  }
-  return { rows, bad };
-}
 
 function Index() {
   const [tab, setTab] = useState<"buscar" | "adicionar">("buscar");
@@ -144,10 +120,8 @@ function Index() {
 
 function AddSection({ onSaved }: { onSaved: () => void }) {
   const [f, setF] = useState({ criador: "", arroba: "", famoso: "", data: "" });
-  const [bulk, setBulk] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
-  const preview = useMemo(() => parseBulk(bulk), [bulk]);
 
   const insert = async (rows: NewRow[]) => {
     setBusy(true);
@@ -162,49 +136,30 @@ function AddSection({ onSaved }: { onSaved: () => void }) {
   const inputCls = "w-full rounded-lg border border-input bg-background px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-ring";
 
   return (
-    <section className="mt-4 space-y-6">
+    <section className="mt-4 space-y-4">
       {msg && <p className="rounded-lg bg-muted p-3 text-sm">{msg}</p>}
 
       <form className="space-y-2" onSubmit={async (e) => {
         e.preventDefault();
         if (!f.criador.trim() || !f.famoso.trim()) return;
-        const ok = await insert([{ criador: f.criador.trim(), arroba: cleanAt(f.arroba), famoso: f.famoso.trim(), data: f.data || null }]);
+        // Separa famosos por vírgula (ou barra) em registros individuais
+        const famosos = f.famoso.split(/[,/]/).map((s) => s.trim()).filter(Boolean);
+        if (famosos.length === 0) return;
+        const rows = famosos.map((famoso) => ({
+          criador: f.criador.trim(),
+          arroba: cleanAt(f.arroba),
+          famoso,
+          data: f.data || null,
+        }));
+        const ok = await insert(rows);
         if (ok) setF({ criador: "", arroba: "", famoso: "", data: "" });
       }}>
-        <h2 className="font-semibold">Registro único</h2>
         <input className={inputCls} placeholder="Nome do criador *" value={f.criador} onChange={(e) => setF({ ...f, criador: e.target.value })} />
         <input className={inputCls} placeholder="@ do criador" value={f.arroba} onChange={(e) => setF({ ...f, arroba: e.target.value })} />
-        <input className={inputCls} placeholder="Famoso homenageado *" value={f.famoso} onChange={(e) => setF({ ...f, famoso: e.target.value })} />
+        <input className={inputCls} placeholder="Famoso homenageado * (separe por vírgula p/ vários)" value={f.famoso} onChange={(e) => setF({ ...f, famoso: e.target.value })} />
         <input className={inputCls} type="date" value={f.data} onChange={(e) => setF({ ...f, data: e.target.value })} />
         <button disabled={busy} className="w-full rounded-lg bg-primary py-3 font-medium text-primary-foreground disabled:opacity-50">Salvar</button>
       </form>
-
-      <div className="space-y-2">
-        <h2 className="font-semibold">Importar em massa</h2>
-        <p className="text-xs text-muted-foreground">
-          Uma linha por registro, na ordem: <b>criador, @, famoso, data</b>. Separe por TAB (colado da planilha), ponto e vírgula, | ou vírgula. Data em dd/mm/aaaa.
-        </p>
-        <textarea className={inputCls + " h-40 font-mono text-sm"} value={bulk} onChange={(e) => setBulk(e.target.value)}
-          placeholder={"João Silva; @joaosilva; Faustão/Bisteca; 12/03/2025\nMaria; @maria; Xuxa; 01/02/2025"} />
-        {bulk.trim() && (
-          <div className="text-sm">
-            <p>{preview.rows.length} válido(s){preview.bad.length > 0 && `, ${preview.bad.length} ignorado(s)`}</p>
-            <div className="mt-2 max-h-60 overflow-auto rounded-lg border border-border">
-              <table className="w-full text-xs">
-                <thead className="bg-muted"><tr><th className="p-1.5 text-left">Criador</th><th className="p-1.5 text-left">@</th><th className="p-1.5 text-left">Famoso</th><th className="p-1.5 text-left">Data</th></tr></thead>
-                <tbody>{preview.rows.map((r, i) => (
-                  <tr key={i} className="border-t border-border"><td className="p-1.5">{r.criador}</td><td className="p-1.5">{r.arroba}</td><td className="p-1.5">{r.famoso}</td><td className="p-1.5">{fmtDate(r.data)}</td></tr>
-                ))}</tbody>
-              </table>
-            </div>
-          </div>
-        )}
-        <button disabled={busy || preview.rows.length === 0}
-          onClick={async () => { if (await insert(preview.rows)) setBulk(""); }}
-          className="w-full rounded-lg bg-primary py-3 font-medium text-primary-foreground disabled:opacity-50">
-          Importar {preview.rows.length || ""} registro(s)
-        </button>
-      </div>
     </section>
   );
 }
