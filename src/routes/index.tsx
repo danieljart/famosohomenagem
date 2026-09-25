@@ -48,30 +48,6 @@ function cleanAt(s: string) {
   return t.startsWith("@") ? t : "@" + t;
 }
 
-function parseBulk(text: string): { rows: NewRow[]; bad: string[] } {
-  const rows: NewRow[] = [];
-  const bad: string[] = [];
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line) continue;
-    const sep = line.includes("\t") ? "\t" : line.includes(";") ? ";" : line.includes("|") ? "|" : ",";
-    const p: string[] = line.split(sep).map((x) => x.trim());
-    const g = (i: number) => p[i] ?? "";
-    if (p.length < 3) { bad.push(line); continue; }
-    let criador = "", arroba = "", famoso = "", data: string | null = null;
-    if (p.length >= 4) {
-      criador = g(0); arroba = g(1); famoso = g(2);
-      data = parseDate(g(3));
-    } else {
-      // 3 colunas: criador, @, famoso  OU  criador, famoso, data
-      if (parseDate(g(2))) { criador = g(0); famoso = g(1); data = parseDate(g(2)); }
-      else { criador = g(0); arroba = g(1); famoso = g(2); }
-    }
-    if (!criador || !famoso) { bad.push(line); continue; }
-    rows.push({ criador, arroba: cleanAt(arroba), famoso, data });
-  }
-  return { rows, bad };
-}
 
 function Index() {
   const [tab, setTab] = useState<"buscar" | "adicionar">("buscar");
