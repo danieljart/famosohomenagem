@@ -16,25 +16,11 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type Row = { id: string; criador: string; arroba: string; famoso: string; data: string | null; created_at: string };
-type NewRow = Omit<Row, "id" | "created_at">;
+type Row = { id: string; criador: string; arroba: string; famoso: string; data: string | null; created_at: string; status: string };
+type NewRow = Omit<Row, "id" | "created_at" | "data">;
 
 const norm = (s: string) =>
-  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-
-function parseDate(s: string): string | null {
-  const t = s.trim();
-  if (!t) return null;
-  let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if (m) return `${m[1]}-${(m[2] ?? "").padStart(2, "0")}-${(m[3] ?? "").padStart(2, "0")}`;
-  m = t.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/);
-  if (m) {
-    const y3 = m[3] ?? "";
-    const y = y3.length === 2 ? "20" + y3 : y3;
-    return `${y}-${(m[2] ?? "").padStart(2, "0")}-${(m[1] ?? "").padStart(2, "0")}`;
-  }
-  return null;
-}
+  s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
 function fmtDate(d: string | null) {
   if (!d) return "—";
@@ -48,34 +34,46 @@ function cleanAt(s: string) {
   return t.startsWith("@") ? t : "@" + t;
 }
 
+function todayISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 function Index() {
   const [tab, setTab] = useState<"buscar" | "adicionar">("buscar");
+  const [statusFilter, setStatusFilter] = useState<"postado" | "em_producao">("postado");
   const [all, setAll] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
 
   const load = async () => {
-    const { data } = await supabase.from("homenagens").select("id,criador,arroba,famoso,data,created_at").order("created_at", { ascending: false });
+    const { data } = await supabase.from("homenagens").select("id,criador,arroba,famoso,data,created_at,status").order("created_at", { ascending: false });
     setAll((data as Row[]) ?? []);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
+  const byStatus = useMemo(() => all.filter((r) => r.status === statusFilter), [all, statusFilter]);
+
   const results = useMemo(() => {
     const n = norm(q);
     if (!n) return [];
     const words = n.split(/\s+/);
-    return all.filter((r) => {
+    return byStatus.filter((r) => {
       const hay = norm(r.famoso);
       return words.every((w) => hay.includes(w));
     });
-  }, [q, all]);
+  }, [q, byStatus]);
+
+  const list = q.trim() ? results : byStatus;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-xl px-4 py-6">
-        <h1 className="text-2xl font-bold tracking-tight">Famosos homenageados</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Famosos homenageados pela Ruptura Global</h1>
         <p className="text-sm text-muted-foreground">{all.length} registros</p>
 
         <div className="mt-4 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
@@ -89,17 +87,30 @@ function Index() {
 
         {tab === "buscar" ? (
           <section className="mt-4">
+            <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+              <button onClick={() => setStatusFilter("postado")}
+                className={`rounded-md py-1.5 text-xs font-medium ${statusFilter === "postado" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
+                ✅ Já postado
+              </button>
+              <button onClick={() => setStatusFilter("em_producao")}
+                className={`rounded-md py-1.5 text-xs font-medium ${statusFilter === "em_producao" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
+                🎬 Em produção
+              </button>
+            </div>
+
             <input autoFocus value={q} onChange={(e) => setQ(e.target.value)}
               placeholder="Digite o nome do famoso…"
-              className="w-full rounded-lg border border-input bg-background px-4 py-3 text-base outline-none focus:ring-2 focus:ring-ring" />
+              className="mt-3 w-full rounded-lg border border-input bg-background px-4 py-3 text-base outline-none focus:ring-2 focus:ring-ring" />
             <div className="mt-4 space-y-2">
               {loading ? <p className="text-sm text-muted-foreground">Carregando…</p>
-                : results.length === 0 && q.trim() ? (
+                : q.trim() && list.length === 0 ? (
                   <div className="rounded-lg border border-border bg-card p-4 text-center">
                     <p className="text-lg font-semibold text-primary">Ainda não foi feito ✅</p>
                     <p className="text-sm text-muted-foreground">"{q}" está livre.</p>
                   </div>
-                ) : (results.length ? results : all).map((r) => (
+                ) : list.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum registro aqui ainda.</p>
+                ) : list.map((r) => (
                   <div key={r.id} className="rounded-lg border border-border bg-card p-3">
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-semibold">{r.famoso}</p>
@@ -119,11 +130,12 @@ function Index() {
 }
 
 function AddSection({ onSaved }: { onSaved: () => void }) {
-  const [f, setF] = useState({ criador: "", arroba: "", famoso: "", data: "" });
+  const [f, setF] = useState({ criador: "", arroba: "", famoso: "" });
+  const [status, setStatus] = useState<"postado" | "em_producao">("postado");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const insert = async (rows: NewRow[]) => {
+  const insert = async (rows: (NewRow & { data: string | null })[]) => {
     setBusy(true);
     const { error } = await supabase.from("homenagens").insert(rows);
     setBusy(false);
@@ -142,22 +154,32 @@ function AddSection({ onSaved }: { onSaved: () => void }) {
       <form className="space-y-2" onSubmit={async (e) => {
         e.preventDefault();
         if (!f.criador.trim() || !f.famoso.trim()) return;
-        // Separa famosos por vírgula (ou barra) em registros individuais
         const famosos = f.famoso.split(/[,/]/).map((s) => s.trim()).filter(Boolean);
         if (famosos.length === 0) return;
         const rows = famosos.map((famoso) => ({
           criador: f.criador.trim(),
           arroba: cleanAt(f.arroba),
           famoso,
-          data: f.data || null,
+          status,
+          data: todayISO(),
         }));
         const ok = await insert(rows);
-        if (ok) setF({ criador: "", arroba: "", famoso: "", data: "" });
+        if (ok) setF({ criador: "", arroba: "", famoso: "" });
       }}>
         <input className={inputCls} placeholder="Nome do criador *" value={f.criador} onChange={(e) => setF({ ...f, criador: e.target.value })} />
         <input className={inputCls} placeholder="@ do criador" value={f.arroba} onChange={(e) => setF({ ...f, arroba: e.target.value })} />
         <input className={inputCls} placeholder="Famoso homenageado * (separe por vírgula p/ vários)" value={f.famoso} onChange={(e) => setF({ ...f, famoso: e.target.value })} />
-        <input className={inputCls} type="date" value={f.data} onChange={(e) => setF({ ...f, data: e.target.value })} />
+        <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+          <button type="button" onClick={() => setStatus("postado")}
+            className={`rounded-md py-2 text-sm font-medium ${status === "postado" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
+            ✅ Já postado
+          </button>
+          <button type="button" onClick={() => setStatus("em_producao")}
+            className={`rounded-md py-2 text-sm font-medium ${status === "em_producao" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
+            🎬 Em produção
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground">A data é salva automaticamente com o dia de hoje.</p>
         <button disabled={busy} className="w-full rounded-lg bg-primary py-3 font-medium text-primary-foreground disabled:opacity-50">Salvar</button>
       </form>
     </section>
