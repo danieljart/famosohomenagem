@@ -138,7 +138,7 @@ function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
     for (const r of rows) {
       const ex = all.find((a) => norm(a.criador) === norm(r.criador) && norm(a.famoso) === norm(r.famoso));
       if (ex) {
-        const patch: Record<string, string> = { status: r.status, data: r.data ?? todayISO() };
+        const patch: { status: string; data: string; arroba?: string } = { status: r.status, data: r.data ?? todayISO() };
         if (r.arroba) patch.arroba = r.arroba;
         const { error } = await supabase.from("homenagens").update(patch).eq("id", ex.id);
         if (error) { setBusy(false); setMsg("Erro ao salvar: " + error.message); return false; }
