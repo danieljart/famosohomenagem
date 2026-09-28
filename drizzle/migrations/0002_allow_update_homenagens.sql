@@ -1,0 +1,2 @@
+GRANT UPDATE ON public.homenagens TO anon, authenticated;
+CREATE POLICY "Todos podem atualizar" ON public.homenagens FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (status IN ('postado','em_producao') AND length(criador) BETWEEN 1 AND 200 AND length(famoso) BETWEEN 1 AND 200 AND length(arroba) <= 200);
