@@ -15,6 +15,13 @@
       "when": 1790630134252,
       "tag": "0001_add_status_column",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790630356754,
+      "tag": "0002_allow_update_homenagens",
+      "breakpoints": true
     }
   ]
 }

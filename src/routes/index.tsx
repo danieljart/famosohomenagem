@@ -44,7 +44,6 @@ function todayISO() {
 
 function Index() {
   const [tab, setTab] = useState<"buscar" | "adicionar">("buscar");
-  const [statusFilter, setStatusFilter] = useState<"postado" | "em_producao">("postado");
   const [all, setAll] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -56,19 +55,22 @@ function Index() {
   };
   useEffect(() => { load(); }, []);
 
-  const byStatus = useMemo(() => all.filter((r) => r.status === statusFilter), [all, statusFilter]);
+  const sorted = useMemo(
+    () => [...all].sort((a, b) => (a.status === b.status ? 0 : a.status === "em_producao" ? -1 : 1)),
+    [all],
+  );
 
   const results = useMemo(() => {
     const n = norm(q);
     if (!n) return [];
     const words = n.split(/\s+/);
-    return all.filter((r) => {
+    return sorted.filter((r) => {
       const hay = norm(r.famoso);
       return words.every((w) => hay.includes(w));
     });
-  }, [q, all]);
+  }, [q, sorted]);
 
-  const list = q.trim() ? results : byStatus;
+  const list = q.trim() ? results : sorted;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -87,20 +89,9 @@ function Index() {
 
         {tab === "buscar" ? (
           <section className="mt-4">
-            <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-              <button onClick={() => setStatusFilter("postado")}
-                className={`rounded-md py-1.5 text-xs font-medium ${statusFilter === "postado" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
-                ✅ Já postado
-              </button>
-              <button onClick={() => setStatusFilter("em_producao")}
-                className={`rounded-md py-1.5 text-xs font-medium ${statusFilter === "em_producao" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
-                🎬 Em produção
-              </button>
-            </div>
-
             <input autoFocus value={q} onChange={(e) => setQ(e.target.value)}
               placeholder="Digite o nome do famoso…"
-              className="mt-3 w-full rounded-lg border border-input bg-background px-4 py-3 text-base outline-none focus:ring-2 focus:ring-ring" />
+              className="w-full rounded-lg border border-input bg-background px-4 py-3 text-base outline-none focus:ring-2 focus:ring-ring" />
             <div className="mt-4 space-y-2">
               {loading ? <p className="text-sm text-muted-foreground">Carregando…</p>
                 : q.trim() && list.length === 0 ? (
@@ -113,35 +104,53 @@ function Index() {
                 ) : list.map((r) => (
                   <div key={r.id} className="rounded-lg border border-border bg-card p-3">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-semibold">{r.famoso}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold">{r.famoso}</p>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${r.status === "em_producao" ? "bg-accent text-accent-foreground" : "bg-primary/15 text-primary"}`}>
+                          {r.status === "em_producao" ? "🎬 Em produção" : "✅ Postado"}
+                        </span>
+                      </div>
                       <span className="shrink-0 text-xs text-muted-foreground">{fmtDate(r.data)}</span>
                     </div>
                     <p className="text-sm">{r.criador} <span className="text-muted-foreground">{r.arroba}</span></p>
-                    <p className="mt-1 text-xs">{r.status === "em_producao" ? "🎬 Em produção" : "✅ Já postado"}</p>
                   </div>
                 ))}
             </div>
           </section>
         ) : (
-          <AddSection onSaved={load} />
+          <AddSection onSaved={load} all={all} />
         )}
       </div>
     </main>
   );
 }
 
-function AddSection({ onSaved }: { onSaved: () => void }) {
+function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
   const [f, setF] = useState({ criador: "", arroba: "", famoso: "" });
   const [status, setStatus] = useState<"postado" | "em_producao">("postado");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const insert = async (rows: (NewRow & { data: string | null })[]) => {
+  const save = async (rows: (NewRow & { data: string | null })[]) => {
     setBusy(true);
-    const { error } = await supabase.from("homenagens").insert(rows);
+    const toInsert: typeof rows = [];
+    let updated = 0;
+    for (const r of rows) {
+      const ex = all.find((a) => norm(a.criador) === norm(r.criador) && norm(a.famoso) === norm(r.famoso));
+      if (ex) {
+        const patch: { status: string; data: string; arroba?: string } = { status: r.status, data: r.data ?? todayISO() };
+        if (r.arroba) patch.arroba = r.arroba;
+        const { error } = await supabase.from("homenagens").update(patch).eq("id", ex.id);
+        if (error) { setBusy(false); setMsg("Erro ao salvar: " + error.message); return false; }
+        updated++;
+      } else toInsert.push(r);
+    }
+    if (toInsert.length) {
+      const { error } = await supabase.from("homenagens").insert(toInsert);
+      if (error) { setBusy(false); setMsg("Erro ao salvar: " + error.message); return false; }
+    }
     setBusy(false);
-    if (error) { setMsg("Erro ao salvar: " + error.message); return false; }
-    setMsg(`${rows.length} registro(s) salvo(s)!`);
+    setMsg(`${toInsert.length} novo(s), ${updated} atualizado(s)!`);
     onSaved();
     return true;
   };
@@ -164,7 +173,7 @@ function AddSection({ onSaved }: { onSaved: () => void }) {
           status,
           data: todayISO(),
         }));
-        const ok = await insert(rows);
+        const ok = await save(rows);
         if (ok) setF({ criador: "", arroba: "", famoso: "" });
       }}>
         <input className={inputCls} placeholder="Nome do criador *" value={f.criador} onChange={(e) => setF({ ...f, criador: e.target.value })} />
