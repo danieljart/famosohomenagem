@@ -62,11 +62,11 @@ function Index() {
     const n = norm(q);
     if (!n) return [];
     const words = n.split(/\s+/);
-    return byStatus.filter((r) => {
+    return all.filter((r) => {
       const hay = norm(r.famoso);
       return words.every((w) => hay.includes(w));
     });
-  }, [q, byStatus]);
+  }, [q, all]);
 
   const list = q.trim() ? results : byStatus;
 
@@ -117,6 +117,7 @@ function Index() {
                       <span className="shrink-0 text-xs text-muted-foreground">{fmtDate(r.data)}</span>
                     </div>
                     <p className="text-sm">{r.criador} <span className="text-muted-foreground">{r.arroba}</span></p>
+                    <p className="mt-1 text-xs">{r.status === "em_producao" ? "🎬 Em produção" : "✅ Já postado"}</p>
                   </div>
                 ))}
             </div>
