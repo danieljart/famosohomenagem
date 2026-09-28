@@ -1,0 +1,1 @@
+ALTER TABLE public.homenagens ADD COLUMN status text NOT NULL DEFAULT 'postado' CHECK (status IN ('postado','em_producao'));

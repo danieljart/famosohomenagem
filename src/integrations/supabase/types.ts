@@ -22,6 +22,7 @@ export type Database = {
           data: string | null
           famoso: string
           id: string
+          status: string
         }
         Insert: {
           arroba?: string
@@ -30,6 +31,7 @@ export type Database = {
           data?: string | null
           famoso: string
           id?: string
+          status?: string
         }
         Update: {
           arroba?: string
@@ -38,6 +40,7 @@ export type Database = {
           data?: string | null
           famoso?: string
           id?: string
+          status?: string
         }
         Relationships: []
       }
