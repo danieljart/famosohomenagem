@@ -1,0 +1,1 @@
+ALTER TABLE public.homenagens ADD COLUMN IF NOT EXISTS link TEXT;

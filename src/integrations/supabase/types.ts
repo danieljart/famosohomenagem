@@ -22,6 +22,7 @@ export type Database = {
           data: string | null
           famoso: string
           id: string
+          link: string | null
           status: string
         }
         Insert: {
@@ -31,6 +32,7 @@ export type Database = {
           data?: string | null
           famoso: string
           id?: string
+          link?: string | null
           status?: string
         }
         Update: {
@@ -40,6 +42,7 @@ export type Database = {
           data?: string | null
           famoso?: string
           id?: string
+          link?: string | null
           status?: string
         }
         Relationships: []
