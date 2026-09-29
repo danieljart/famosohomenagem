@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Instagram } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type Row = { id: string; criador: string; arroba: string; famoso: string; data: string | null; created_at: string; status: string };
+type Row = { id: string; criador: string; arroba: string; famoso: string; data: string | null; created_at: string; status: string; link: string | null };
 type NewRow = Omit<Row, "id" | "created_at" | "data">;
 
 const norm = (s: string) =>
@@ -49,7 +50,7 @@ function Index() {
   const [q, setQ] = useState("");
 
   const load = async () => {
-    const { data } = await supabase.from("homenagens").select("id,criador,arroba,famoso,data,created_at,status").order("created_at", { ascending: false });
+    const { data } = await supabase.from("homenagens").select("id,criador,arroba,famoso,data,created_at,status,link").order("created_at", { ascending: false });
     setAll((data as Row[]) ?? []);
     setLoading(false);
   };
@@ -104,13 +105,23 @@ function Index() {
                 ) : list.map((r) => (
                   <div key={r.id} className="rounded-lg border border-border bg-card p-3">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold">{r.famoso}</p>
+                      <p className="font-semibold">{r.famoso}</p>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        <div className="flex items-center gap-2">
+                          {r.link ? (
+                            <a href={r.link} target="_blank" rel="noreferrer" aria-label="Instagram do criador"
+                              className="text-foreground transition-colors hover:text-primary">
+                              <Instagram size={18} />
+                            </a>
+                          ) : (
+                            <Instagram size={18} className="text-muted-foreground/40" />
+                          )}
+                          <span className="text-xs text-muted-foreground">{fmtDate(r.data)}</span>
+                        </div>
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${r.status === "em_producao" ? "bg-accent text-accent-foreground" : "bg-primary/15 text-primary"}`}>
                           {r.status === "em_producao" ? "🎬 Em produção" : "✅ Postado"}
                         </span>
                       </div>
-                      <span className="shrink-0 text-xs text-muted-foreground">{fmtDate(r.data)}</span>
                     </div>
                     <p className="text-sm">{r.criador} <span className="text-muted-foreground">{r.arroba}</span></p>
                   </div>
@@ -126,7 +137,7 @@ function Index() {
 }
 
 function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
-  const [f, setF] = useState({ criador: "", arroba: "", famoso: "" });
+  const [f, setF] = useState({ criador: "", arroba: "", famoso: "", link: "" });
   const [status, setStatus] = useState<"postado" | "em_producao">("postado");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -138,8 +149,9 @@ function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
     for (const r of rows) {
       const ex = all.find((a) => norm(a.criador) === norm(r.criador) && norm(a.famoso) === norm(r.famoso));
       if (ex) {
-        const patch: { status: string; data: string; arroba?: string } = { status: r.status, data: r.data ?? todayISO() };
+        const patch: { status: string; data: string; arroba?: string; link?: string } = { status: r.status, data: r.data ?? todayISO() };
         if (r.arroba) patch.arroba = r.arroba;
+        if (r.link) patch.link = r.link;
         const { error } = await supabase.from("homenagens").update(patch).eq("id", ex.id);
         if (error) { setBusy(false); setMsg("Erro ao salvar: " + error.message); return false; }
         updated++;
@@ -171,13 +183,15 @@ function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
           arroba: cleanAt(f.arroba),
           famoso,
           status,
+          link: f.link.trim() || null,
           data: todayISO(),
         }));
         const ok = await save(rows);
-        if (ok) setF({ criador: "", arroba: "", famoso: "" });
+        if (ok) setF({ criador: "", arroba: "", famoso: "", link: "" });
       }}>
         <input className={inputCls} placeholder="Nome do criador *" value={f.criador} onChange={(e) => setF({ ...f, criador: e.target.value })} />
         <input className={inputCls} placeholder="@ do criador" value={f.arroba} onChange={(e) => setF({ ...f, arroba: e.target.value })} />
+        <input className={inputCls} placeholder="Link do Instagram (opcional)" value={f.link} onChange={(e) => setF({ ...f, link: e.target.value })} />
         <input className={inputCls} placeholder="Famoso homenageado * (separe por vírgula p/ vários)" value={f.famoso} onChange={(e) => setF({ ...f, famoso: e.target.value })} />
         <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
           <button type="button" onClick={() => setStatus("postado")}
