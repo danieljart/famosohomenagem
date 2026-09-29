@@ -109,7 +109,7 @@ function Index() {
                         <p className="font-semibold leading-snug">{r.famoso}</p>
                         <p className="text-sm leading-snug">{r.criador} <span className="text-muted-foreground">{r.arroba}</span></p>
                       </div>
-                      <div className="flex shrink-0 items-start gap-2">
+                      <div className="flex shrink-0 items-center gap-2">
                         {r.link ? (
                           <a href={r.link} target="_blank" rel="noreferrer" aria-label="Instagram do criador"
                             className="rounded-lg border border-border bg-muted p-1.5 text-foreground transition-colors hover:text-primary">
