@@ -107,21 +107,23 @@ function Index() {
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-semibold">{r.famoso}</p>
                       <div className="flex shrink-0 flex-col items-end gap-1.5">
-                        <div className="flex items-center gap-2">
-                          {r.link ? (
-                            <a href={r.link} target="_blank" rel="noreferrer" aria-label="Instagram do criador"
-                              className="text-foreground transition-colors hover:text-primary">
-                              <Instagram size={18} />
-                            </a>
-                          ) : (
-                            <Instagram size={18} className="text-muted-foreground/40" />
-                          )}
-                          <span className="text-xs text-muted-foreground">{fmtDate(r.data)}</span>
-                        </div>
+                        <span className="text-xs text-muted-foreground">{fmtDate(r.data)}</span>
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${r.status === "em_producao" ? "bg-accent text-accent-foreground" : "bg-primary/15 text-primary"}`}>
                           {r.status === "em_producao" ? "🎬 Em produção" : "✅ Postado"}
                         </span>
                       </div>
+                    </div>
+                    <div className="flex justify-center py-2">
+                      {r.link ? (
+                        <a href={r.link} target="_blank" rel="noreferrer" aria-label="Instagram do criador"
+                          className="rounded-lg border border-border bg-muted p-2.5 text-foreground transition-colors hover:text-primary">
+                          <Instagram size={24} />
+                        </a>
+                      ) : (
+                        <span className="rounded-lg border border-border bg-muted p-2.5 text-muted-foreground/40">
+                          <Instagram size={24} />
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm">{r.criador} <span className="text-muted-foreground">{r.arroba}</span></p>
                   </div>
