@@ -105,7 +105,10 @@ function Index() {
                 ) : list.map((r) => (
                   <div key={r.id} className="rounded-lg border border-border bg-card p-3">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-semibold">{r.famoso}</p>
+                      <div className="min-w-0">
+                        <p className="font-semibold leading-snug">{r.famoso}</p>
+                        <p className="text-sm leading-snug">{r.criador} <span className="text-muted-foreground">{r.arroba}</span></p>
+                      </div>
                       <div className="flex shrink-0 items-start gap-2">
                         {r.link ? (
                           <a href={r.link} target="_blank" rel="noreferrer" aria-label="Instagram do criador"
@@ -125,7 +128,6 @@ function Index() {
                         </div>
                       </div>
                     </div>
-                    <p className="text-sm">{r.criador} <span className="text-muted-foreground">{r.arroba}</span></p>
                   </div>
                 ))}
             </div>
