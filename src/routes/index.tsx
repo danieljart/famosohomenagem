@@ -25,6 +25,19 @@ type NewRow = Omit<Row, "id" | "created_at" | "data">;
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
+// Partes do nome: principal + apelidos entre parênteses. Ex: "Bruno Cardoso (Sorriso Maroto)" -> ["bruno cardoso", "sorriso maroto"]
+function nameKeys(s: string): string[] {
+  const n = norm(s);
+  const parts = [n.replace(/\([^)]*\)/g, " "), ...Array.from(n.matchAll(/\(([^)]*)\)/g), (m) => m[1])];
+  return parts
+    .map((p) => p.replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim())
+    .filter((p) => p.length >= 3);
+}
+const sameArtist = (a: string, b: string) => {
+  const kb = nameKeys(b);
+  return nameKeys(a).some((k) => kb.includes(k));
+};
+
 function fmtDate(d: string | null) {
   if (!d) return "—";
   const [y, m, day] = d.split("-");
@@ -87,6 +100,17 @@ function Index() {
 
   const list = q.trim() ? results : sorted;
 
+  // Quantas vezes o artista já apareceu até este registro (ordem cronológica)
+  const mentions = useMemo(() => {
+    const asc = [...all].sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const m: Record<string, number> = {};
+    asc.forEach((r, i) => {
+      m[r.id] = 1 + asc.slice(0, i).filter((p) => sameArtist(p.famoso, r.famoso)).length;
+    });
+    return m;
+  }, [all]);
+
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       {showNews && (
@@ -142,7 +166,12 @@ function Index() {
                   <div key={r.id} className="rounded-lg border border-border bg-card p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="font-semibold leading-snug">{r.famoso}</p>
+                        <p className="font-semibold leading-snug">
+                          {r.famoso}
+                          {mentions[r.id] > 1 && (
+                            <span className="ml-1.5 rounded-full bg-destructive/15 px-1.5 py-0.5 align-middle text-[11px] font-bold text-destructive">{mentions[r.id]}x</span>
+                          )}
+                        </p>
                         <p className="text-sm leading-snug">{r.criador} <span className="text-muted-foreground">{r.arroba}</span></p>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
@@ -216,9 +245,38 @@ function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
 
   const inputCls = "w-full rounded-lg border border-input bg-background px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-ring";
 
+  const [pending, setPending] = useState<{ rows: (NewRow & { data: string | null })[]; dups: { novo: string; existentes: Row[] }[] } | null>(null);
+
+  const confirmPending = async () => {
+    if (!pending) return;
+    const ok = await save(pending.rows);
+    setPending(null);
+    if (ok) setF({ criador: "", arroba: "", famoso: "", link: "" });
+  };
+
   return (
     <section className="mt-4 space-y-4">
       {msg && <p className="rounded-lg bg-muted p-3 text-sm">{msg}</p>}
+
+      {pending && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => setPending(null)}>
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold">⚠️ Artista já homenageado, adicionar mesmo assim?</h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              {pending.dups.map((d) => (
+                <li key={d.novo}>
+                  <span className="font-medium">{d.novo}</span>
+                  <span className="text-muted-foreground"> — já feito {d.existentes.length}x: {d.existentes.map((e) => `${e.famoso} por ${e.criador}`).join("; ")}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button onClick={() => setPending(null)} className="rounded-lg border border-border py-2.5 font-medium">Cancelar</button>
+              <button onClick={confirmPending} disabled={busy} className="rounded-lg bg-primary py-2.5 font-medium text-primary-foreground disabled:opacity-50">Adicionar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <form className="space-y-2" onSubmit={async (e) => {
         e.preventDefault();
@@ -233,6 +291,14 @@ function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
           link: f.link.trim() || null,
           data: todayISO(),
         }));
+        const dups = rows
+          .map((r) => ({
+            novo: r.famoso,
+            existentes: all.filter((a) => sameArtist(a.famoso, r.famoso)),
+            same: all.some((a) => norm(a.criador) === norm(r.criador) && norm(a.famoso) === norm(r.famoso)),
+          }))
+          .filter((d) => d.existentes.length > 0 && !d.same);
+        if (dups.length) { setPending({ rows, dups }); return; }
         const ok = await save(rows);
         if (ok) setF({ criador: "", arroba: "", famoso: "", link: "" });
       }}>
