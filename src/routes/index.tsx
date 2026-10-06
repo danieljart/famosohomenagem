@@ -245,9 +245,38 @@ function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
 
   const inputCls = "w-full rounded-lg border border-input bg-background px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-ring";
 
+  const [pending, setPending] = useState<{ rows: (NewRow & { data: string | null })[]; dups: { novo: string; existentes: Row[] }[] } | null>(null);
+
+  const confirmPending = async () => {
+    if (!pending) return;
+    const ok = await save(pending.rows);
+    setPending(null);
+    if (ok) setF({ criador: "", arroba: "", famoso: "", link: "" });
+  };
+
   return (
     <section className="mt-4 space-y-4">
       {msg && <p className="rounded-lg bg-muted p-3 text-sm">{msg}</p>}
+
+      {pending && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => setPending(null)}>
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold">⚠️ Artista já homenageado, adicionar mesmo assim?</h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              {pending.dups.map((d) => (
+                <li key={d.novo}>
+                  <span className="font-medium">{d.novo}</span>
+                  <span className="text-muted-foreground"> — já feito {d.existentes.length}x: {d.existentes.map((e) => `${e.famoso} por ${e.criador}`).join("; ")}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button onClick={() => setPending(null)} className="rounded-lg border border-border py-2.5 font-medium">Cancelar</button>
+              <button onClick={confirmPending} disabled={busy} className="rounded-lg bg-primary py-2.5 font-medium text-primary-foreground disabled:opacity-50">Adicionar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <form className="space-y-2" onSubmit={async (e) => {
         e.preventDefault();
@@ -262,6 +291,14 @@ function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
           link: f.link.trim() || null,
           data: todayISO(),
         }));
+        const dups = rows
+          .map((r) => ({
+            novo: r.famoso,
+            existentes: all.filter((a) => sameArtist(a.famoso, r.famoso)),
+            same: all.some((a) => norm(a.criador) === norm(r.criador) && norm(a.famoso) === norm(r.famoso)),
+          }))
+          .filter((d) => d.existentes.length > 0 && !d.same);
+        if (dups.length) { setPending({ rows, dups }); return; }
         const ok = await save(rows);
         if (ok) setF({ criador: "", arroba: "", famoso: "", link: "" });
       }}>
