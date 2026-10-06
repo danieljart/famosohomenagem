@@ -44,7 +44,7 @@ function todayISO() {
 }
 
 function Index() {
-  const [tab, setTab] = useState<"buscar" | "adicionar">("buscar");
+  const [tab, setTab] = useState<"buscar" | "trends" | "adicionar">("buscar");
   const [all, setAll] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -79,16 +79,16 @@ function Index() {
         <h1 className="text-2xl font-bold tracking-tight">Famosos homenageados pela Ruptura Global</h1>
         <p className="text-sm text-muted-foreground">{all.length} registros</p>
 
-        <div className="mt-4 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-          {(["buscar", "adicionar"] as const).map((t) => (
+        <div className="mt-4 grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+          {(["buscar", "trends", "adicionar"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`rounded-md py-2 text-sm font-medium ${tab === t ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
-              {t === "buscar" ? "Buscar" : "Adicionar dados"}
+              {t === "buscar" ? "Buscar" : t === "trends" ? "🔥 Trends" : "Adicionar"}
             </button>
           ))}
         </div>
 
-        {tab === "buscar" ? (
+        {tab === "trends" ? <TrendsSection /> : tab === "buscar" ? (
           <section className="mt-4">
             <input autoFocus value={q} onChange={(e) => setQ(e.target.value)}
               placeholder="Digite o nome do famoso…"
@@ -122,9 +122,16 @@ function Index() {
                         )}
                         <div className="flex flex-col items-end gap-1.5">
                           <span className="text-xs text-muted-foreground">{fmtDate(r.data)}</span>
-                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${r.status === "em_producao" ? "bg-accent text-accent-foreground" : "bg-primary/15 text-primary"}`}>
+                          <button type="button" title="Clique para mudar o status"
+                            onClick={async () => {
+                              const next = r.status === "em_producao" ? "postado" : "em_producao";
+                              setAll((p) => p.map((x) => (x.id === r.id ? { ...x, status: next } : x)));
+                              const { error } = await supabase.from("homenagens").update({ status: next }).eq("id", r.id);
+                              if (error) load();
+                            }}
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition-opacity hover:opacity-80 ${r.status === "em_producao" ? "bg-accent text-accent-foreground" : "bg-primary/15 text-primary"}`}>
                             {r.status === "em_producao" ? "🎬 Em produção" : "✅ Postado"}
-                          </span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -210,6 +217,126 @@ function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
         <p className="text-xs text-muted-foreground">A data é salva automaticamente com o dia de hoje.</p>
         <button disabled={busy} className="w-full rounded-lg bg-primary py-3 font-medium text-primary-foreground disabled:opacity-50">Salvar</button>
       </form>
+
+      <TrendForm inputCls={inputCls} />
+    </section>
+  );
+}
+
+const PLATS = [
+  { v: "instagram", l: "Instagram" },
+  { v: "tiktok", l: "TikTok" },
+  { v: "x", l: "X" },
+  { v: "facebook", l: "Facebook" },
+  { v: "youtube", l: "YouTube" },
+  { v: "outro", l: "Outro" },
+] as const;
+const platLabel = (v: string) => PLATS.find((p) => p.v === v)?.l ?? v;
+
+type Trend = { id: string; nome: string; link: string | null; plataforma: string; upvotes: number; downvotes: number; created_at: string };
+
+function TrendForm({ inputCls }: { inputCls: string }) {
+  const [nome, setNome] = useState("");
+  const [link, setLink] = useState("");
+  const [plat, setPlat] = useState("instagram");
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <form className="space-y-2 rounded-lg border border-border bg-card p-3" onSubmit={async (e) => {
+      e.preventDefault();
+      if (!nome.trim()) return;
+      setBusy(true);
+      const { error } = await supabase.from("trends").insert({ nome: nome.trim(), link: link.trim() || null, plataforma: plat });
+      setBusy(false);
+      if (error) setMsg("Erro: " + error.message);
+      else { setMsg("Trend adicionada!"); setNome(""); setLink(""); }
+    }}>
+      <h2 className="font-semibold">🔥 Adicionar trend</h2>
+      {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
+      <input className={inputCls} placeholder="Nome da trend *" value={nome} onChange={(e) => setNome(e.target.value)} />
+      <input className={inputCls} placeholder="Link de referência" value={link} onChange={(e) => setLink(e.target.value)} />
+      <div className="flex flex-wrap gap-1">
+        {PLATS.map((p) => (
+          <button key={p.v} type="button" onClick={() => setPlat(p.v)}
+            className={`rounded-full border px-3 py-1 text-sm ${plat === p.v ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>
+            {p.l}
+          </button>
+        ))}
+      </div>
+      <button disabled={busy} className="w-full rounded-lg bg-primary py-3 font-medium text-primary-foreground disabled:opacity-50">Salvar trend</button>
+    </form>
+  );
+}
+
+function TrendsSection() {
+  const [trends, setTrends] = useState<Trend[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sort, setSort] = useState<"semana" | "top" | "novas">("semana");
+  const [plat, setPlat] = useState("todas");
+  const [votes, setVotes] = useState<Record<string, 1 | -1>>({});
+
+  useEffect(() => {
+    try { setVotes(JSON.parse(localStorage.getItem("trend-votes") || "{}")); } catch { /* ignore */ }
+    supabase.from("trends").select("*").then(({ data }) => { setTrends((data as Trend[]) ?? []); setLoading(false); });
+  }, []);
+
+  const list = useMemo(() => {
+    const weekAgo = Date.now() - 7 * 864e5;
+    let l = trends.filter((t) => plat === "todas" || t.plataforma === plat);
+    if (sort === "semana") l = l.filter((t) => new Date(t.created_at).getTime() >= weekAgo);
+    const score = (t: Trend) => t.upvotes - t.downvotes;
+    return [...l].sort((a, b) => sort === "novas" ? b.created_at.localeCompare(a.created_at) : score(b) - score(a)).slice(0, sort === "novas" ? 50 : 10);
+  }, [trends, sort, plat]);
+
+  const vote = async (t: Trend, dir: 1 | -1) => {
+    const cur = votes[t.id];
+    let du = 0, dd = 0;
+    if (cur === dir) { if (dir === 1) du = -1; else dd = -1; }
+    else {
+      if (dir === 1) du = 1; else dd = 1;
+      if (cur === 1) du = -1; if (cur === -1) dd = -1;
+    }
+    const nv = { ...votes };
+    if (cur === dir) delete nv[t.id]; else nv[t.id] = dir;
+    setVotes(nv);
+    localStorage.setItem("trend-votes", JSON.stringify(nv));
+    setTrends((p) => p.map((x) => x.id === t.id ? { ...x, upvotes: Math.max(0, x.upvotes + du), downvotes: Math.max(0, x.downvotes + dd) } : x));
+    if (du) await supabase.rpc("vote_trend", { _id: t.id, _delta_up: du, _delta_down: 0 });
+    if (dd) await supabase.rpc("vote_trend", { _id: t.id, _delta_up: 0, _delta_down: dd });
+  };
+
+  const chip = (on: boolean) => `shrink-0 rounded-full border px-3 py-1 text-sm ${on ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`;
+
+  return (
+    <section className="mt-4 space-y-3">
+      <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+        {([["semana", "⚡ Top semana"], ["top", "🏆 Top geral"], ["novas", "🕒 Novas"]] as const).map(([v, l]) => (
+          <button key={v} onClick={() => setSort(v)} className={`rounded-md py-2 text-xs font-medium ${sort === v ? "bg-background shadow-sm" : "text-muted-foreground"}`}>{l}</button>
+        ))}
+      </div>
+      <div className="flex gap-1 overflow-x-auto pb-1">
+        <button className={chip(plat === "todas")} onClick={() => setPlat("todas")}>Todas</button>
+        {PLATS.map((p) => <button key={p.v} className={chip(plat === p.v)} onClick={() => setPlat(p.v)}>{p.l}</button>)}
+      </div>
+      {loading ? <p className="text-sm text-muted-foreground">Carregando…</p>
+        : list.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma trend aqui ainda. Adicione na aba "Adicionar".</p>
+        : list.map((t, i) => (
+          <div key={t.id} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+            <div className="flex flex-col items-center">
+              <button aria-label="Upvote" onClick={() => vote(t, 1)} className={`px-2 text-lg leading-none ${votes[t.id] === 1 ? "text-primary" : "text-muted-foreground"}`}>▲</button>
+              <span className="text-sm font-bold">{t.upvotes - t.downvotes}</span>
+              <button aria-label="Downvote" onClick={() => vote(t, -1)} className={`px-2 text-lg leading-none ${votes[t.id] === -1 ? "text-destructive" : "text-muted-foreground"}`}>▼</button>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold leading-snug">{sort !== "novas" && <span className="mr-1 text-primary">#{i + 1}</span>}{t.nome}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span className="rounded-full bg-muted px-2 py-0.5">{platLabel(t.plataforma)}</span>
+                <span>▲ {t.upvotes} · ▼ {t.downvotes}</span>
+                {t.link && <a href={t.link} target="_blank" rel="noreferrer" className="text-primary underline">ver referência</a>}
+              </div>
+            </div>
+          </div>
+        ))}
     </section>
   );
 }

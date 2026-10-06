@@ -47,12 +47,45 @@ export type Database = {
         }
         Relationships: []
       }
+      trends: {
+        Row: {
+          created_at: string
+          downvotes: number
+          id: string
+          link: string | null
+          nome: string
+          plataforma: string
+          upvotes: number
+        }
+        Insert: {
+          created_at?: string
+          downvotes?: number
+          id?: string
+          link?: string | null
+          nome: string
+          plataforma?: string
+          upvotes?: number
+        }
+        Update: {
+          created_at?: string
+          downvotes?: number
+          id?: string
+          link?: string | null
+          nome?: string
+          plataforma?: string
+          upvotes?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      vote_trend: {
+        Args: { _delta_down: number; _delta_up: number; _id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
