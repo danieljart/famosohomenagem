@@ -100,6 +100,17 @@ function Index() {
 
   const list = q.trim() ? results : sorted;
 
+  // Quantas vezes o artista já apareceu até este registro (ordem cronológica)
+  const mentions = useMemo(() => {
+    const asc = [...all].sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const m: Record<string, number> = {};
+    asc.forEach((r, i) => {
+      m[r.id] = 1 + asc.slice(0, i).filter((p) => sameArtist(p.famoso, r.famoso)).length;
+    });
+    return m;
+  }, [all]);
+
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       {showNews && (
@@ -155,7 +166,12 @@ function Index() {
                   <div key={r.id} className="rounded-lg border border-border bg-card p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="font-semibold leading-snug">{r.famoso}</p>
+                        <p className="font-semibold leading-snug">
+                          {r.famoso}
+                          {mentions[r.id] > 1 && (
+                            <span className="ml-1.5 rounded-full bg-destructive/15 px-1.5 py-0.5 align-middle text-[11px] font-bold text-destructive">{mentions[r.id]}x</span>
+                          )}
+                        </p>
                         <p className="text-sm leading-snug">{r.criador} <span className="text-muted-foreground">{r.arroba}</span></p>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
