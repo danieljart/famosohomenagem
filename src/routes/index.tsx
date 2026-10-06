@@ -89,6 +89,28 @@ function Index() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
+      {showNews && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={closeNews}>
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-2">
+              <h2 className="text-lg font-bold">🎉 Novidades da nova versão</h2>
+              <button onClick={closeNews} aria-label="Fechar" className="rounded-md p-1 text-muted-foreground hover:text-foreground">
+                <X size={18} />
+              </button>
+            </div>
+            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li>🔥 <span className="font-medium text-foreground">Aba de Trends</span> — ranking das trends mais votadas, com filtro por rede (Instagram, TikTok, X, Facebook, YouTube) e ordenação estilo Reddit: top da semana, top geral e novas.</li>
+              <li>▲▼ <span className="font-medium text-foreground">Votos nas trends</span> — dê upvote ou downvote pra rankear o que tá bombando.</li>
+              <li>🎬 <span className="font-medium text-foreground">Status com 1 clique</span> — clique na etiqueta do card pra trocar entre "Em produção" e "Postado".</li>
+              <li>📸 <span className="font-medium text-foreground">Link do Instagram</span> — cadastre o link do criador e ele vira um ícone clicável no card.</li>
+              <li>📅 <span className="font-medium text-foreground">Data automática</span> — a data é salva sozinha no dia do cadastro.</li>
+            </ul>
+            <button onClick={closeNews} className="mt-4 w-full rounded-lg bg-primary py-2.5 font-medium text-primary-foreground">
+              Entendi!
+            </button>
+          </div>
+        </div>
+      )}
       <div className="mx-auto max-w-xl px-4 py-6">
         <h1 className="text-2xl font-bold tracking-tight">Famosos homenageados pela Ruptura Global</h1>
         <p className="text-sm text-muted-foreground">{all.length} registros</p>
