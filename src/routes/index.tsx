@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Instagram } from "lucide-react";
+import { Instagram, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
+const NEWS_KEY = "ruptura-news-v2";
 
 export const Route = createFileRoute("/")({
   head: () => ({
