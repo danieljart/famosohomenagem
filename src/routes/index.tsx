@@ -25,6 +25,19 @@ type NewRow = Omit<Row, "id" | "created_at" | "data">;
 const norm = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
+// Partes do nome: principal + apelidos entre parênteses. Ex: "Bruno Cardoso (Sorriso Maroto)" -> ["bruno cardoso", "sorriso maroto"]
+function nameKeys(s: string): string[] {
+  const n = norm(s);
+  const parts = [n.replace(/\([^)]*\)/g, " "), ...Array.from(n.matchAll(/\(([^)]*)\)/g), (m) => m[1])];
+  return parts
+    .map((p) => p.replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim())
+    .filter((p) => p.length >= 3);
+}
+const sameArtist = (a: string, b: string) => {
+  const kb = nameKeys(b);
+  return nameKeys(a).some((k) => kb.includes(k));
+};
+
 function fmtDate(d: string | null) {
   if (!d) return "—";
   const [y, m, day] = d.split("-");
