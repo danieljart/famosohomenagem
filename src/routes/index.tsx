@@ -50,6 +50,18 @@ function Index() {
   const [all, setAll] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [showNews, setShowNews] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(NEWS_KEY)) setShowNews(true);
+    } catch { /* ignore */ }
+  }, []);
+
+  const closeNews = () => {
+    try { localStorage.setItem(NEWS_KEY, "1"); } catch { /* ignore */ }
+    setShowNews(false);
+  };
 
   const load = async () => {
     const { data } = await supabase.from("homenagens").select("id,criador,arroba,famoso,data,created_at,status,link").order("created_at", { ascending: false });
