@@ -77,16 +77,22 @@ function Index() {
   };
 
   const load = async () => {
+    await supabase.rpc("limpar_producao_antiga");
     const { data } = await supabase.from("homenagens").select("id,criador,arroba,famoso,data,created_at,status,link").order("created_at", { ascending: false });
     setAll((data as Row[]) ?? []);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
-  const sorted = useMemo(
-    () => [...all].sort((a, b) => (a.status === b.status ? 0 : a.status === "em_producao" ? -1 : 1)),
-    [all],
-  );
+  const rank = (s: string) => (s === "em_producao" ? 0 : s === "restricao" ? 1 : 2);
+  const sorted = useMemo(() => [...all].sort((a, b) => rank(a.status) - rank(b.status)), [all]);
+
+  const remove = async (id: string) => {
+    if (!confirm("Apagar este registro?")) return;
+    setAll((p) => p.filter((x) => x.id !== id));
+    const { error } = await supabase.from("homenagens").delete().eq("id", id);
+    if (error) load();
+  };
 
   const results = useMemo(() => {
     const n = norm(q);
@@ -189,14 +195,15 @@ function Index() {
                           <span className="text-xs text-muted-foreground">{fmtDate(r.data)}</span>
                           <button type="button" title="Clique para mudar o status"
                             onClick={async () => {
-                              const next = r.status === "em_producao" ? "postado" : "em_producao";
+                              const next = r.status === "em_producao" ? "postado" : r.status === "postado" ? "restricao" : "em_producao";
                               setAll((p) => p.map((x) => (x.id === r.id ? { ...x, status: next } : x)));
                               const { error } = await supabase.from("homenagens").update({ status: next }).eq("id", r.id);
                               if (error) load();
                             }}
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition-opacity hover:opacity-80 ${r.status === "em_producao" ? "bg-accent text-accent-foreground" : "bg-primary/15 text-primary"}`}>
-                            {r.status === "em_producao" ? "🎬 Em produção" : "✅ Postado"}
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition-opacity hover:opacity-80 ${r.status === "em_producao" ? "bg-accent text-accent-foreground" : r.status === "restricao" ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary"}`}>
+                            {r.status === "em_producao" ? "🎬 Em produção" : r.status === "restricao" ? "🚫 Restrição" : "✅ Postado"}
                           </button>
+                          <button type="button" onClick={() => remove(r.id)} className="text-[11px] text-muted-foreground hover:text-destructive">🗑 apagar</button>
                         </div>
                       </div>
                     </div>
@@ -214,7 +221,7 @@ function Index() {
 
 function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
   const [f, setF] = useState({ criador: "", arroba: "", famoso: "", link: "" });
-  const [status, setStatus] = useState<"postado" | "em_producao">("postado");
+  const [status, setStatus] = useState<"postado" | "em_producao" | "restricao">("postado");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -306,7 +313,7 @@ function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
         <input className={inputCls} placeholder="@ do criador" value={f.arroba} onChange={(e) => setF({ ...f, arroba: e.target.value })} />
         <input className={inputCls} placeholder="Link do Instagram (opcional)" value={f.link} onChange={(e) => setF({ ...f, link: e.target.value })} />
         <input className={inputCls} placeholder="Famoso homenageado * (separe por vírgula p/ vários)" value={f.famoso} onChange={(e) => setF({ ...f, famoso: e.target.value })} />
-        <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+        <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
           <button type="button" onClick={() => setStatus("postado")}
             className={`rounded-md py-2 text-sm font-medium ${status === "postado" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
             ✅ Já postado
@@ -314,6 +321,10 @@ function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
           <button type="button" onClick={() => setStatus("em_producao")}
             className={`rounded-md py-2 text-sm font-medium ${status === "em_producao" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
             🎬 Em produção
+          </button>
+          <button type="button" onClick={() => setStatus("restricao")}
+            className={`rounded-md py-2 text-sm font-medium ${status === "restricao" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
+            🚫 Restrição
           </button>
         </div>
         <p className="text-xs text-muted-foreground">A data é salva automaticamente com o dia de hoje.</p>
@@ -435,6 +446,11 @@ function TrendsSection() {
                 <span className="rounded-full bg-muted px-2 py-0.5">{platLabel(t.plataforma)}</span>
                 <span>▲ {t.upvotes} · ▼ {t.downvotes}</span>
                 {t.link && <a href={t.link} target="_blank" rel="noreferrer" className="text-primary underline">ver referência</a>}
+                <button onClick={async () => {
+                  if (!confirm("Apagar esta trend?")) return;
+                  setTrends((p) => p.filter((x) => x.id !== t.id));
+                  await supabase.from("trends").delete().eq("id", t.id);
+                }} className="hover:text-destructive">🗑 apagar</button>
               </div>
             </div>
           </div>
