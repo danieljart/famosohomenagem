@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Instagram, X } from "lucide-react";
+import { Ban, Instagram, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const NEWS_KEY = "ruptura-news-v3";
 
@@ -64,6 +66,9 @@ function Index() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [showNews, setShowNews] = useState(false);
+  const [removalTarget, setRemovalTarget] = useState<Row | null>(null);
+  const [removalBusy, setRemovalBusy] = useState(false);
+  const [removalError, setRemovalError] = useState("");
 
   useEffect(() => {
     try {
@@ -87,11 +92,28 @@ function Index() {
   const rank = (s: string) => (s === "em_producao" ? 0 : s === "restricao" ? 1 : 2);
   const sorted = useMemo(() => [...all].sort((a, b) => rank(a.status) - rank(b.status)), [all]);
 
-  const remove = async (id: string) => {
-    if (!confirm("Apagar este registro?")) return;
-    setAll((p) => p.filter((x) => x.id !== id));
-    const { error } = await supabase.from("homenagens").delete().eq("id", id);
-    if (error) load();
+  const resolveRemoval = async (reason: "restricao" | "apagar") => {
+    if (!removalTarget || removalBusy) return;
+    const id = removalTarget.id;
+    setRemovalBusy(true);
+    setRemovalError("");
+    try {
+      const { data, error } = reason === "restricao"
+        ? await supabase.from("homenagens").update({ status: "restricao" }).eq("id", id).select("id")
+        : await supabase.from("homenagens").delete().eq("id", id).select("id");
+      if (error || !data?.length) {
+        setRemovalError("Não foi possível salvar a alteração. Tente novamente.");
+        return;
+      }
+      setAll((p) => reason === "restricao"
+        ? p.map((r) => r.id === id ? { ...r, status: "restricao" } : r)
+        : p.filter((r) => r.id !== id));
+      setRemovalTarget(null);
+    } catch {
+      setRemovalError("Não foi possível salvar a alteração. Tente novamente.");
+    } finally {
+      setRemovalBusy(false);
+    }
   };
 
   const results = useMemo(() => {
@@ -119,6 +141,30 @@ function Index() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
+      <Dialog open={removalTarget !== null} onOpenChange={(open) => {
+        if (!open && !removalBusy) setRemovalTarget(null);
+      }}>
+        <DialogContent className="max-w-[calc(100%-2rem)] rounded-lg bg-card sm:max-w-sm" aria-busy={removalBusy}>
+          <DialogHeader>
+            <DialogTitle>Qual o motivo de apagar?</DialogTitle>
+            <DialogDescription className="break-words">
+              {removalTarget?.famoso} — {removalTarget?.criador}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Button variant="outline" className="w-full text-destructive" disabled={removalBusy} onClick={() => resolveRemoval("restricao")}>
+              <Ban /> Restrição
+            </Button>
+            <p className="text-xs text-muted-foreground">Mantém o registro com a etiqueta vermelha “Restrição”.</p>
+            <Button variant="destructive" className="w-full" disabled={removalBusy} onClick={() => resolveRemoval("apagar")}>
+              <Trash2 /> Só quis apagar mesmo
+            </Button>
+            <p className="text-xs text-muted-foreground">Apaga o registro definitivamente.</p>
+          </div>
+          {removalError && <p role="alert" className="text-sm text-destructive">{removalError}</p>}
+          <Button variant="ghost" disabled={removalBusy} onClick={() => setRemovalTarget(null)}>Cancelar</Button>
+        </DialogContent>
+      </Dialog>
       {showNews && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={closeNews}>
           <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-lg" onClick={(e) => e.stopPropagation()}>
@@ -192,7 +238,14 @@ function Index() {
                           </span>
                         )}
                         <div className="flex flex-col items-end gap-1.5">
-                          <span className="text-xs text-muted-foreground">{fmtDate(r.data)}</span>
+                          <div className="flex items-center gap-1.5">
+                            <Button type="button" variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                              aria-label={`Apagar registro de ${r.famoso} por ${r.criador}`} title="Apagar registro"
+                              onClick={() => { setRemovalError(""); setRemovalTarget(r); }}>
+                              <Trash2 />
+                            </Button>
+                            <span className="text-xs text-muted-foreground">{fmtDate(r.data)}</span>
+                          </div>
                           <button type="button" title="Clique para mudar o status"
                             onClick={async () => {
                               const next = r.status === "em_producao" ? "postado" : r.status === "postado" ? "restricao" : "em_producao";
@@ -203,7 +256,6 @@ function Index() {
                             className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition-opacity hover:opacity-80 ${r.status === "em_producao" ? "bg-accent text-accent-foreground" : r.status === "restricao" ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary"}`}>
                             {r.status === "em_producao" ? "🎬 Em produção" : r.status === "restricao" ? "🚫 Restrição" : "✅ Postado"}
                           </button>
-                          <button type="button" onClick={() => remove(r.id)} className="text-[11px] text-muted-foreground hover:text-destructive">🗑 apagar</button>
                         </div>
                       </div>
                     </div>
