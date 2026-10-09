@@ -30,7 +30,7 @@ function nameKeys(s: string): string[] {
   const n = norm(s);
   const parts = [n.replace(/\([^)]*\)/g, " "), ...Array.from(n.matchAll(/\(([^)]*)\)/g), (m) => m[1])];
   return parts
-    .map((p) => p.replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim())
+    .map((p) => (p ?? "").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim())
     .filter((p) => p.length >= 3);
 }
 const sameArtist = (a: string, b: string) => {
@@ -168,7 +168,7 @@ function Index() {
                       <div className="min-w-0">
                         <p className="font-semibold leading-snug">
                           {r.famoso}
-                          {mentions[r.id] > 1 && (
+                          {(mentions[r.id] ?? 1) > 1 && (
                             <span className="ml-1.5 rounded-full bg-destructive/15 px-1.5 py-0.5 align-middle text-[11px] font-bold text-destructive">{mentions[r.id]}x</span>
                           )}
                         </p>
