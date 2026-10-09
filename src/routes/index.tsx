@@ -221,7 +221,7 @@ function Index() {
 
 function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
   const [f, setF] = useState({ criador: "", arroba: "", famoso: "", link: "" });
-  const [status, setStatus] = useState<"postado" | "em_producao">("postado");
+  const [status, setStatus] = useState<"postado" | "em_producao" | "restricao">("postado");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -313,7 +313,7 @@ function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
         <input className={inputCls} placeholder="@ do criador" value={f.arroba} onChange={(e) => setF({ ...f, arroba: e.target.value })} />
         <input className={inputCls} placeholder="Link do Instagram (opcional)" value={f.link} onChange={(e) => setF({ ...f, link: e.target.value })} />
         <input className={inputCls} placeholder="Famoso homenageado * (separe por vírgula p/ vários)" value={f.famoso} onChange={(e) => setF({ ...f, famoso: e.target.value })} />
-        <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+        <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
           <button type="button" onClick={() => setStatus("postado")}
             className={`rounded-md py-2 text-sm font-medium ${status === "postado" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
             ✅ Já postado
@@ -321,6 +321,10 @@ function AddSection({ onSaved, all }: { onSaved: () => void; all: Row[] }) {
           <button type="button" onClick={() => setStatus("em_producao")}
             className={`rounded-md py-2 text-sm font-medium ${status === "em_producao" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
             🎬 Em produção
+          </button>
+          <button type="button" onClick={() => setStatus("restricao")}
+            className={`rounded-md py-2 text-sm font-medium ${status === "restricao" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
+            🚫 Restrição
           </button>
         </div>
         <p className="text-xs text-muted-foreground">A data é salva automaticamente com o dia de hoje.</p>
@@ -442,6 +446,11 @@ function TrendsSection() {
                 <span className="rounded-full bg-muted px-2 py-0.5">{platLabel(t.plataforma)}</span>
                 <span>▲ {t.upvotes} · ▼ {t.downvotes}</span>
                 {t.link && <a href={t.link} target="_blank" rel="noreferrer" className="text-primary underline">ver referência</a>}
+                <button onClick={async () => {
+                  if (!confirm("Apagar esta trend?")) return;
+                  setTrends((p) => p.filter((x) => x.id !== t.id));
+                  await supabase.from("trends").delete().eq("id", t.id);
+                }} className="hover:text-destructive">🗑 apagar</button>
               </div>
             </div>
           </div>
