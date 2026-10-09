@@ -3,7 +3,7 @@ import { Instagram, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-const NEWS_KEY = "ruptura-news-v2";
+const NEWS_KEY = "ruptura-news-v3";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -123,11 +123,11 @@ function Index() {
               </button>
             </div>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li>🔥 <span className="font-medium text-foreground">Aba de Trends</span> — ranking das trends mais votadas, com filtro por rede (Instagram, TikTok, X, Facebook, YouTube) e ordenação estilo Reddit: top da semana, top geral e novas.</li>
-              <li>▲▼ <span className="font-medium text-foreground">Votos nas trends</span> — dê upvote ou downvote pra rankear o que tá bombando.</li>
+              <li>⚠️ <span className="font-medium text-foreground">Aviso de artista repetido</span> — se o artista já foi homenageado, aparece um aviso antes de salvar mostrando quem já fez, e você escolhe adicionar ou cancelar.</li>
+              <li>🔁 <span className="font-medium text-foreground">Etiqueta 2x, 3x, 4x</span> — do lado do nome aparece quantas vezes o artista já entrou na lista. Vale pros registros antigos também.</li>
+              <li>🔎 <span className="font-medium text-foreground">Reconhece nomes parecidos</span> — "Bruno Cardoso" e "Bruno Cardoso (Sorriso Maroto)" são tratados como o mesmo artista, mas quem só tem o nome parecido não é avisado.</li>
+              <li>🔥 <span className="font-medium text-foreground">Trends com votos</span> — ranking das trends mais votadas, filtro por rede e ordenação estilo Reddit.</li>
               <li>🎬 <span className="font-medium text-foreground">Status com 1 clique</span> — clique na etiqueta do card pra trocar entre "Em produção" e "Postado".</li>
-              <li>📸 <span className="font-medium text-foreground">Link do Instagram</span> — cadastre o link do criador e ele vira um ícone clicável no card.</li>
-              <li>📅 <span className="font-medium text-foreground">Data automática</span> — a data é salva sozinha no dia do cadastro.</li>
             </ul>
             <button onClick={closeNews} className="mt-4 w-full rounded-lg bg-primary py-2.5 font-medium text-primary-foreground">
               Entendi!
