@@ -82,6 +82,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      limpar_producao_antiga: { Args: never; Returns: undefined }
       vote_trend: {
         Args: { _delta_down: number; _delta_up: number; _id: string }
         Returns: undefined
