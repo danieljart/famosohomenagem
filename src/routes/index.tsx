@@ -77,16 +77,22 @@ function Index() {
   };
 
   const load = async () => {
+    await supabase.rpc("limpar_producao_antiga");
     const { data } = await supabase.from("homenagens").select("id,criador,arroba,famoso,data,created_at,status,link").order("created_at", { ascending: false });
     setAll((data as Row[]) ?? []);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
-  const sorted = useMemo(
-    () => [...all].sort((a, b) => (a.status === b.status ? 0 : a.status === "em_producao" ? -1 : 1)),
-    [all],
-  );
+  const rank = (s: string) => (s === "em_producao" ? 0 : s === "restricao" ? 1 : 2);
+  const sorted = useMemo(() => [...all].sort((a, b) => rank(a.status) - rank(b.status)), [all]);
+
+  const remove = async (id: string) => {
+    if (!confirm("Apagar este registro?")) return;
+    setAll((p) => p.filter((x) => x.id !== id));
+    const { error } = await supabase.from("homenagens").delete().eq("id", id);
+    if (error) load();
+  };
 
   const results = useMemo(() => {
     const n = norm(q);
@@ -189,14 +195,15 @@ function Index() {
                           <span className="text-xs text-muted-foreground">{fmtDate(r.data)}</span>
                           <button type="button" title="Clique para mudar o status"
                             onClick={async () => {
-                              const next = r.status === "em_producao" ? "postado" : "em_producao";
+                              const next = r.status === "em_producao" ? "postado" : r.status === "postado" ? "restricao" : "em_producao";
                               setAll((p) => p.map((x) => (x.id === r.id ? { ...x, status: next } : x)));
                               const { error } = await supabase.from("homenagens").update({ status: next }).eq("id", r.id);
                               if (error) load();
                             }}
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition-opacity hover:opacity-80 ${r.status === "em_producao" ? "bg-accent text-accent-foreground" : "bg-primary/15 text-primary"}`}>
-                            {r.status === "em_producao" ? "🎬 Em produção" : "✅ Postado"}
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition-opacity hover:opacity-80 ${r.status === "em_producao" ? "bg-accent text-accent-foreground" : r.status === "restricao" ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary"}`}>
+                            {r.status === "em_producao" ? "🎬 Em produção" : r.status === "restricao" ? "🚫 Restrição" : "✅ Postado"}
                           </button>
+                          <button type="button" onClick={() => remove(r.id)} className="text-[11px] text-muted-foreground hover:text-destructive">🗑 apagar</button>
                         </div>
                       </div>
                     </div>
