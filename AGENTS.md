@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Use the shared Dialog and Button components for famous-record removal; restriction updates the existing record rather than deleting it, keeping the confirmation accessible and the artist visible.
